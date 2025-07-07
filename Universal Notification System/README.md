@@ -10,7 +10,7 @@ warnings, info, and success messages. It gives you a few functions to trigger th
 ## Setup
 ```lua
 if not getgenv().IvNotify then
-    loadstring(...)()
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/BloodyBurns/Lua/refs/heads/main/Universal%20Notification%20System/init.lua'))()
 end
 
 IvNotify.info('Universal Notification System', 'Hello World!')
