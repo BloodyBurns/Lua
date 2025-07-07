@@ -15,7 +15,7 @@
 ```lua
 --> Prevent reinitialization
 if not getgenv().IvKit then
-    loadstring(game:HttpGet('https://raw.githubusercontent.com/BloodyBurns/Lua/refs/heads/main/IvKit/init.lua))()
+    loadstring(game:HttpGet('https://raw.githubusercontent.com/BloodyBurns/Lua/refs/heads/main/IvKit/init.lua'))()
 end
 
 --> Reassigns the active function’s environment reference to IvKit, rerouting all globals through IvKit's table proxy for isolated lexical binding
