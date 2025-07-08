@@ -1,9 +1,9 @@
---> Rewrite
 local track = nil
 local keybind = Enum.KeyCode.LeftAlt
 local animation = Instance.new('Animation')
 local plr = game:GetService('Players').LocalPlayer
-local UI_ROOT = game:GetObjects('rbxassetid://10772412958')
+local InputService = game:GetService('UserInputService')
+local UI_ROOT = game:GetObjects('rbxassetid://10772412958')[1]
 local humanoid = plr.Character and plr.Character:FindFirstChild('Humanoid')
 
 local play = function(id)
@@ -15,7 +15,7 @@ local play = function(id)
 end
 
 plr.CharacterAdded:Connect(function(character) humanoid = character:WaitForChild('Humanoid') end)
-UI_ROOT.Parent = CoreGui
+UI_ROOT.Parent = game:GetService('CoreGui')
 Instance.new('UIDragDetector').Parent = UI_ROOT.Frame
 UI_ROOT.Frame.Close.MouseButton1Click:Connect(function() UI_ROOT.Frame.Visible = false end)
 UI_ROOT.Frame.List.Stop.Button.MouseButton1Click:Connect(function() if track then track:Stop() end end)
@@ -50,7 +50,7 @@ UI_ROOT.Frame.Key.Button.MouseButton1Click:Connect(function()
         UI_ROOT.Frame.Key.Button.Text = `Keybind: {keybind.Name}`
     end
 end)
-    
+
 UI_ROOT.Frame.Search.MouseEnter:Connect(function()
     UI_ROOT.Frame.Search.Bar:TweenSizeAndPosition(
         UDim2.new(1, 0, 0.031, 0),
@@ -83,16 +83,15 @@ end)
 local file = 'emotes.json'
 local emotes = isfile(file) and readfile(file)
 if not emotes then
-    IvLog.warn('Cache miss: emote dataset not found')
-    IvLog.info('Initiating remote fetch for emotes.json')
-    local result, elapsed = benchmark(HttpGet, 'https://raw.githubusercontent.com/BloodyBurns/Lua/refs/heads/main/emotes.json')
-    if not result then return IvLog.error('Fetch failed: Unable to retrieve emote data (network error or invalid response)') end
+    warn('Cache miss: emote dataset not found')
+    print('Initiating remote fetch for emotes.json')
+    local result, x = pcall(game.HttpGet, game.HttpGet, 'https://raw.githubusercontent.com/BloodyBurns/Lua/refs/heads/main/emotes.json')
+    if not result then return error('Fetch failed: Unable to retrieve emote data (network error or invalid response)') end
     emotes = result
     writefile('emotes.json', result)
-    IvLog.success('Emotes cached', timeFmt(elapsed))
 end
 
-emotes = JSON('unpack', emotes)
+emotes = game:GetService('HttpService'):JSONDecode(emotes)
 for x, v in emotes do
     local button = UI_ROOT.Objs.Animation:Clone()
     button.Label.Text = v.name:split('-')[1]
