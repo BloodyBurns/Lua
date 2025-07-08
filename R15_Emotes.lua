@@ -85,10 +85,9 @@ local emotes = isfile(file) and readfile(file)
 if not emotes then
     warn('Cache miss: emote dataset not found')
     print('Initiating remote fetch for emotes.json')
-    local result, x = pcall(game.HttpGet, game.HttpGet, 'https://raw.githubusercontent.com/BloodyBurns/Lua/refs/heads/main/emotes.json')
+    local result, x = pcall(function() emotes = game:HttpGet('https://raw.githubusercontent.com/BloodyBurns/Lua/refs/heads/main/emotes.json') end)
     if not result then return error('Fetch failed: Unable to retrieve emote data (network error or invalid response)') end
-    emotes = result
-    writefile('emotes.json', result)
+    writefile('emotes.json', emotes)
 end
 
 emotes = game:GetService('HttpService'):JSONDecode(emotes)
