@@ -3,24 +3,26 @@ local init = os.clock()
 local _getgenv = getgenv()
 getgenv().IvKit = {
     HttpGet = function(url) return game:HttpGet(url) end,
-    plr = game:GetService('Players').LocalPlayer,
+    plr = nil,
 
-    plrs = game:GetService('Players'),
-    CoreGui = game:GetService('CoreGui'),
-    Lighting = game:GetService('Lighting'),
-    RunService = game:GetService('RunService'),
-    HttpService = game:GetService('HttpService'),
-    TweenService = game:GetService('TweenService'),
-    SoundService = game:GetService('SoundService'),
-    InputService = game:GetService('UserInputService'),
-    TeleportService = game:GetService('TeleportService'),
-    TextChatService = game:GetService('TextChatService'),
-    CollectionService = game:GetService('CollectionService'),
-    ReplicatedStorage = game:GetService('ReplicatedStorage'),
-    MarketplaceService = game:GetService('MarketplaceService'),
-    AvatarEditorService = game:GetService('AvatarEditorService'),
-    VirtualInputManager = game:GetService('VirtualInputManager')
+    plrs = cloneref(game:GetService('Players')),
+    CoreGui = cloneref(game:GetService('CoreGui')),
+    Lighting = cloneref(game:GetService('Lighting')),
+    RunService = cloneref(game:GetService('RunService')),
+    HttpService = cloneref(game:GetService('HttpService')),
+    TweenService = cloneref(game:GetService('TweenService')),
+    SoundService = cloneref(game:GetService('SoundService')),
+    InputService = cloneref(game:GetService('UserInputService')),
+    TeleportService = cloneref(game:GetService('TeleportService')),
+    TextChatService = cloneref(game:GetService('TextChatService')),
+    CollectionService = cloneref(game:GetService('CollectionService')),
+    ReplicatedStorage = cloneref(game:GetService('ReplicatedStorage')),
+    MarketplaceService = cloneref(game:GetService('MarketplaceService')),
+    AvatarEditorService = cloneref(game:GetService('AvatarEditorService')),
+    VirtualInputManager = cloneref(game:GetService('VirtualInputManager'))
 }
+
+IvKit.plr = IvKit.plrs.LocalPlayer
 
 local players = {} --> Cache for Big-O
 local _type, _typeof = type, typeof --> Default Functionality
@@ -210,8 +212,10 @@ IvKit.SignalRegistry = function(token)
 
     actions.clear = function()
         for x, v in connections do
-            v.listener:Disconnect()
-            connections[x] = nil
+            if type(v, 'table') then
+                v.listener:Disconnect()
+                connections[x] = nil
+            end
         end
     end
 
@@ -307,6 +311,7 @@ IvKit.SignalRegistry = function(token)
     end
 
     if token and not sharedSignals[token] then sharedSignals[token] = connections end
+    connections.safeConnection = false
     return setmetatable(connections, {__index = actions})
 end
 
