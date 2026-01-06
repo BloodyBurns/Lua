@@ -87,8 +87,7 @@ Internally maintains a `players` table keyed by name for O(1) lookup.
 | table.purge  | (tbl: table) → nil                                       | Clears all elements from the table (array or dictionary).                            |
 | table.sample | (tbl: table, n?: number, noRep?: boolean) → any or {any} | Returns one random value, or `n` samples (optionally without repeats).               |
 | table.flat   | (tbl: table, deep?: boolean) → {any}                     | Returns a flattened array of values. If `deep` is true, recurses into nested tables. |
-| table.invoke | (tbl: {any}, callback: function)                         | Calls `callback(value)` on each element in the array.                                |
-
+| table.invoke | (tbl: table, fn: function, self?: any, ...)              | Invokes `fn(value, ...)` for each element; optional self allows colon calls.         |
 
 **Recursive flattening logic (deep mode)**:
 
@@ -113,9 +112,9 @@ Manages RBXScriptConnections with ID-based control, suspension, and conditional 
 | suspend       | (id or RBXScriptConnection)                             | Temporarily disables the listener without disconnecting it.                |
 | resume        | (id or RBXScriptConnection)                             | Re-enables a suspended connection.                                         |
 | count         | () → number                                             | Returns the number of managed connections.                                 |
-| clear         | () → void                                                      | Disconnects and removes all connections.                                   |
+| clear         | () → void                                               | Disconnects and removes all connections.                                   |
 | getConnection | (id or RBXScriptConnection) → connectionObject or nil   | Retrieves a stored connection entry by ID or listener.                     |
-| untilThen     | (signal, callback, condition, onTimeout?, ...extraArgs) | Connects once and disconnects when condition is met or timeout expires.    |
+| untilThen     | (signal, callback, condition, onTimeout?, ...extraArgs) | Connects once and auto-disconnects when condition is met, another signal fires, or timeout expires. condition can be a function, signal, or number.|
 
 Usage:
 
@@ -123,38 +122,51 @@ Usage:
 --> Isolated Signals Manager
 local signals = SignalRegistry()
 
---> Shared Signals Manager
-local signals = SignalRegistry('token123')
+--> Shared Signals Manager (token)
+local shared = SignalRegistry('token123')
 
-signals.connect('workspaceListener', workspace.ChildAdded, print)
+--> Connect normally
+signals.connect('workspaceListener', workspace.ChildAdded, function(obj)
+    print('Child added:', obj.Name)
+end)
 
-signals.suspend('workspaceListener') --> suspend by id
+--> Suspend & Resume
+signals.suspend('workspaceListener') --> pause listener
+signals.resume('workspaceListener')  --> resume listener
 
-signals.resume('workspaceListener') --> resume by id
+--> Disconnect
+signals.disconnect('workspaceListener') --> remove listener
 
-signals.disconnect('workspaceListener') --> disconnect by id
-
---> Callback-based condition (runs until it returns true)
-signals.untilThen(player.Jumping, function()
-	print('Player jumped!')
+--> untilThen Examples
+--> 1. Callback-based condition (stops when condition() returns true)
+signals.untilThen(player.Character.Humanoid.Jumping, function()
+    print('Player is jumping')
 end, function()
-	return player.Humanoid and player.Humanoid.Jump == true
+    return player.Character and player.Character.Humanoid.Jump == true
 end)
 
---> Signal-based condition (disconnects when another signal fires)
-signals.untilThen(player.Jumping, function()
-	print('Player jumped — listener will now stop.')
-end, someOtherSignal)
+--> 2. Signal-based condition (stops when stopSignal fires)
+local stopSignal = workspace.ChildAdded
+signals.untilThen(player.Character.Humanoid.Jumping, function()
+    print('Player is jumping')
+end, stopSignal)
 
---> Duration-based condition (auto-disconnect after timeout)
-signals.untilThen(player.Jumping, function()
-	print('Player jumped (but only tracked for 5 seconds).')
+--> 3. Timeout-based (auto-disconnect after 5s)
+signals.untilThen(player.Character.Humanoid.Jumping, function()
+    print('Player is jumping')
 end, 5, function()
-	print('Timed out after 5 seconds without condition being met.')
+    print('Listener stopped after 5s timeout')
 end)
 
---> Cleanup
-signals.clear()
+--> 4. Early success (condition true before timeout)
+signals.untilThen(player.Character.Humanoid.Jumping, function()
+    print('Player is jumping')
+end, function()
+    if player.Character.Humanoid.Jump == true then
+		print('Condition met early')
+	end
+    return jumped
+end, 5)
 ```
 
 ---
@@ -174,6 +186,17 @@ signals.clear()
 
 Controlled live logging with emojis.
 
+**IvLog Properties**
+
+| Property     | Type    | Description                          |
+| ------------ | ------- | ------------------------------------ |
+| live         | boolean | Enable/disable all logging           |
+| emojis       | boolean | Toggle emojis in logs                |
+| prettyTables | boolean | Multi-line table output when true    |
+| maxInline    | number  | Max table length for inline printing |
+
+---
+
 | Log Level      | Signature    | Description         |
 | -------------- | ------------ | ------------------- |
 | success(...) | ...any | Green check log.    |
@@ -182,11 +205,28 @@ Controlled live logging with emojis.
 | info(...)    | ...any | Info log.           |
 | unknown(...) | ...any | Question mark log.  |
 
-Toggle live output with:
-
 ```lua
-IvLog.live = false      --> disable all logs
-IvLog.emojis = false    --> disable emojis
+--> Pretty Tables Example
+IvLog.prettyTables = true
+IvLog.info('Small Table:', {a = 1, b = 2, 'thirdVal'}) 
+IvLog.info('Large Table:', {a = 1, b = 2, c = 3, d = 4})
+
+--> Inline Tables Example
+IvLog.prettyTables = false
+IvLog.info('prettyTables disabled:', {a = 1, b = 2, c = 3, d = 4})
+```
+
+```
+ℹ️ [IvLog] → Small Table: {a = 1, b = 2, thirdVal}
+
+ℹ️ [IvLog] → Large Table:{
+	a = 1,
+	b = 2,
+	c = 3,
+	d = 4
+}
+
+ℹ️ [IvLog] → prettyTables disabled: tbl_memory_address
 ```
 
 ---
