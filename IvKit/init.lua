@@ -29,7 +29,17 @@ local _type, _typeof = type, typeof --> Default Functionality
 local type = function(ref, typeValue, orValue) return not typeValue and _type(ref) or _type(ref) == typeValue or orValue and _type(ref) == orValue end
 local typeof = function(ref, typeValue, orValue) return not typeValue and _typeof(ref) or _typeof(ref) == typeValue or orValue and _typeof(ref) == orValue end
 local isMatch = function(ref, v1, v2, v3) return ref == v1 or ref == v2 or ref == v3 end
+local isArray = function(tbl)
+    if not type(tbl, 'table') then return false end
+     for x in pairs(tbl) do
+        if not type(x, 'number') or x < 1 or x > n or x % 1 ~= 0 then
+            return false
+        end
+    end
+    return true
+end
 
+IvKit.type, IvKit.typeof, IvKit.isMatch = type, typeof, isMatch
 for x, v in IvKit.plrs:GetPlayers() do players[v.Name] = v end
 IvKit.plrs.PlayerAdded:Connect(function(player) players[player.Name] = player end)
 IvKit.plrs.PlayerRemoving:Connect(function(player)
@@ -38,12 +48,104 @@ IvKit.plrs.PlayerRemoving:Connect(function(player)
     end
 end)
 
-IvKit.IvLog = {emojis = true, live = true}
-IvKit.IvLog.success = function(...) if not IvKit.IvLog.live then return end print(IvKit.IvLog.emojis and '✅' or '', '[IvLog] →', ...) end
-IvKit.IvLog.error = function(...) if not IvKit.IvLog.live then return end print(IvKit.IvLog.emojis and '❌' or '', '[IvLog] →', ...) end
-IvKit.IvLog.warn = function(...) if not IvKit.IvLog.live then return end print(IvKit.IvLog.emojis and '⚠️' or '', '[IvLog] →', ...) end
-IvKit.IvLog.info = function(...) if not IvKit.IvLog.live then return end print(IvKit.IvLog.emojis and 'ℹ️' or '', '[IvLog] →', ...) end
-IvKit.IvLog.unknown = function(...) if not IvKit.IvLog.live then return end print(IvKit.IvLog.emojis and '❔' or '', '[IvLog] →', ...) end
+IvKit.IvLog = {emojis = true, live = true, prettyTables = true, maxInline = 3}
+local function serialize(tbl, indent, visited, maxInline)
+    indent = indent or 0
+    visited = visited or {}
+    maxInline = maxInline or IvKit.IvLog.maxInline
+
+    if visited[tbl] then return '<circular>' end
+    visited[tbl] = true
+
+    local keys = 0
+    for x in pairs(tbl) do keys += 1 end
+    local array = isArray(tbl)
+
+    if keys <= maxInline then
+        local parts = {}
+        if array then
+            for i = 1, #tbl do
+                local v = tbl[i]
+                table.insert(parts, type(v, 'table') and serialize(v, indent, visited, maxInline) or tostring(v))
+            end
+            return '[' .. table.concat(parts, ', ') .. ']'
+        else
+            for k, v in pairs(tbl) do
+                local valStr = type(v, 'table') and serialize(v, indent, visited, maxInline) or tostring(v)
+                table.insert(parts, tostring(k) .. '=' .. valStr)
+            end
+            return '{' .. table.concat(parts, ', ') .. '}'
+        end
+    end
+
+    local spacing = string.rep('  ', indent)
+    local result = {array and '[' or '{'}
+    for k, v in pairs(tbl) do
+        local valStr = type(v, 'table') and serialize(v, indent + 1, visited, maxInline) or tostring(v)
+        if array then
+            table.insert(result, spacing .. '  ' .. valStr .. ',')
+        else
+            table.insert(result, spacing .. '  ' .. tostring(k) .. ' = ' .. valStr .. ',')
+        end
+    end
+    table.insert(result, spacing .. (array and ']' or '}'))
+    return table.concat(result, '\n')
+end
+
+IvKit.IvLog.success = function(...)
+    if not IvKit.IvLog.live then return end
+    local args = {...}
+    for i = 1, #args do
+        if IvKit.IvLog.prettyTables and type(args[i], 'table') then
+            args[i] = serialize(args[i])
+        end
+    end
+    print(IvKit.IvLog.emojis and '✅' or '', '[IvLog] →', table.unpack(args))
+end
+
+IvKit.IvLog.error = function(...)
+    if not IvKit.IvLog.live then return end
+    local args = {...}
+    for i = 1, #args do
+        if IvKit.IvLog.prettyTables and type(args[i], 'table') then
+            args[i] = serialize(args[i])
+        end
+    end
+    print(IvKit.IvLog.emojis and '❌' or '', '[IvLog] →', table.unpack(args))
+end
+
+IvKit.IvLog.warn = function(...)
+    if not IvKit.IvLog.live then return end
+    local args = {...}
+    for i = 1, #args do
+        if IvKit.IvLog.prettyTables and type(args[i], 'table') then
+            args[i] = serialize(args[i])
+        end
+    end
+    print(IvKit.IvLog.emojis and '⚠️' or '', '[IvLog] →', table.unpack(args))
+end
+
+IvKit.IvLog.info = function(...)
+    if not IvKit.IvLog.live then return end
+    local args = {...}
+    for i = 1, #args do
+        if IvKit.IvLog.prettyTables and type(args[i], 'table') then
+            args[i] = serialize(args[i])
+        end
+    end
+    print(IvKit.IvLog.emojis and 'ℹ️' or '', '[IvLog] →', table.unpack(args))
+end
+
+IvKit.IvLog.unknown = function(...)
+    if not IvKit.IvLog.live then return end
+    local args = {...}
+    for i = 1, #args do
+        if IvKit.IvLog.prettyTables and type(args[i], 'table') then
+            args[i] = serialize(args[i])
+        end
+    end
+    print(IvKit.IvLog.emojis and '❔' or '', '[IvLog] →', table.unpack(args))
+end
 
 setreadonly(table, false)
 table.size = function(tbl)
@@ -119,16 +221,20 @@ table.flat = function(tbl, deep)
     return result
 end
 
-table.invoke = function(tbl, callback)
-    if #tbl == 0 then return end
-    for x, v in tbl do
-        callback(v)
+table.invoke = function(tbl, fn, self, ...)
+    if self then
+        for x, v in tbl do
+            fn(self, v, ...)
+        end
+    else
+        for x, v in tbl do
+            fn(v)
+        end
     end
 end
 
 setreadonly(table, true)
 
-IvKit.type, IvKit.typeof, IvKit.isMatch = type, typeof, isMatch
 IvKit.GetObjects = function(asset) return game:GetObjects(`rbxassetid://{asset}`)[1] end
 IvKit.JSON = function(method, data) return isMatch(method, 'enc', 'encode', 'Encode') and IvKit.HttpService:JSONEncode(data) or IvKit.HttpService:JSONDecode(data) end
 IvKit.GetPlayers = function(exclude)
@@ -261,57 +367,45 @@ IvKit.SignalRegistry = function(token)
         connections[connection.key] = nil
     end
 
-    actions.untilThen = function(signal, callback, condition, onTimeout, ...)
-        local conditionType = typeof(condition)
-        local extraArgs = { ... }
-        local listener
+    actions.untilThen = function(self, signal, callback, condition, onTimeout, ...)
+        local alive = true
+        local extraArgs = {...}
+        local mainConn, killConn
 
-        listener = signal:Connect(function(...)
-            if conditionType == 'function' then
-                local ran, valid = pcall(condition, ...)
-                if ran and valid then
-                    listener:Disconnect()
-                    listener = nil
-                    return
-                end
-            end
+        local cleanup = function()
+            if not alive then return end
+            alive = false
+            if mainConn then mainConn:Disconnect() end
+            if killConn then killConn:Disconnect() end
+        end
 
-            if callback and callback(...) then
-                listener:Disconnect()
-                listener = nil
-            end
-
-            if not condition then
-                listener:Disconnect()
-                listener = nil
+        mainConn = signal:Connect(function(...)
+            if not alive then return end
+            callback(...)
+            if type(condition) == 'function' and condition() then
+                cleanup()
             end
         end)
 
-        if conditionType == 'RBXScriptSignal' then
-            local temp
-            temp = condition:Connect(function()
-                if listener then
-                    listener:Disconnect()
-                    listener = nil
-                end
-                temp:Disconnect()
+        if typeof(condition) == 'RBXScriptSignal' then
+            killConn = condition:Connect(function()
+                cleanup()
             end)
 
-        elseif conditionType == 'number' then
+        elseif type(condition) == 'number' then
             task.delay(condition, function()
-                if listener then
-                    listener:Disconnect()
-                    listener = nil
-                end
+                if not alive then return end
+                cleanup()
                 if onTimeout then
-                    pcall(onTimeout, table.unpack(extraArgs))
+                    onTimeout(extraArgs)
                 end
             end)
         end
+
+        return mainConn
     end
 
     if token and not sharedSignals[token] then sharedSignals[token] = connections end
-    connections.safeConnection = false
     return setmetatable(connections, {__index = actions})
 end
 
@@ -336,7 +430,7 @@ IvKit.fileSys.loadAsset = function(path, url, delete, name)
         return 0, false
     end
 
-    local fileName = type(name, "string") and name or IvKit.randomString(5, 10) .. ".png"
+    local fileName = type(name, 'string') and name or IvKit.randomString(5, 10) .. '.png'
     local fullPath = isfile(path) and path or `{path}\\{fileName}`
 
     local CACHE_FILE
@@ -381,4 +475,4 @@ setmetatable(getgenv().IvKit, {
     end
 })
 
-print('IvKit load time:', IvKit.timeFmt(os.clock() - init))
+IvKit.IvLog.info('IvKit load time:', IvKit.timeFmt(os.clock() - init))
