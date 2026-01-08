@@ -31,7 +31,8 @@ local typeof = function(ref, typeValue, orValue) return not typeValue and _typeo
 local isMatch = function(ref, v1, v2, v3) return ref == v1 or ref == v2 or ref == v3 end
 local isArray = function(tbl)
     if not type(tbl, 'table') then return false end
-     for x in pairs(tbl) do
+    local n = #tbl
+    for x in pairs(tbl) do
         if not type(x, 'number') or x < 1 or x > n or x % 1 ~= 0 then
             return false
         end
@@ -100,7 +101,7 @@ IvKit.IvLog.success = function(...)
             args[i] = serialize(args[i])
         end
     end
-    print(IvKit.IvLog.emojis and '✅' or '', '[IvLog] →', table.unpack(args))
+    print(IvKit.IvLog.emojis and '✅' or '' .. '[IvLog] →', table.unpack(args))
 end
 
 IvKit.IvLog.error = function(...)
@@ -111,7 +112,7 @@ IvKit.IvLog.error = function(...)
             args[i] = serialize(args[i])
         end
     end
-    print(IvKit.IvLog.emojis and '❌' or '', '[IvLog] →', table.unpack(args))
+    print(IvKit.IvLog.emojis and '❌' or '' .. '[IvLog] →', table.unpack(args))
 end
 
 IvKit.IvLog.warn = function(...)
@@ -122,7 +123,7 @@ IvKit.IvLog.warn = function(...)
             args[i] = serialize(args[i])
         end
     end
-    print(IvKit.IvLog.emojis and '⚠️' or '', '[IvLog] →', table.unpack(args))
+    print(IvKit.IvLog.emojis and '⚠️' or '' .. '[IvLog] →', table.unpack(args))
 end
 
 IvKit.IvLog.info = function(...)
@@ -133,7 +134,7 @@ IvKit.IvLog.info = function(...)
             args[i] = serialize(args[i])
         end
     end
-    print(IvKit.IvLog.emojis and 'ℹ️' or '', '[IvLog] →', table.unpack(args))
+    print(IvKit.IvLog.emojis and 'ℹ️' or '' .. '[IvLog] →', table.unpack(args))
 end
 
 IvKit.IvLog.unknown = function(...)
@@ -144,7 +145,7 @@ IvKit.IvLog.unknown = function(...)
             args[i] = serialize(args[i])
         end
     end
-    print(IvKit.IvLog.emojis and '❔' or '', '[IvLog] →', table.unpack(args))
+    print(IvKit.IvLog.emojis and '❔' or '' .. '[IvLog] →', table.unpack(args))
 end
 
 setreadonly(table, false)
