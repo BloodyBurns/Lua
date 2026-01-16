@@ -101,7 +101,7 @@ IvKit.IvLog.success = function(...)
             args[i] = serialize(args[i])
         end
     end
-    print(IvKit.IvLog.emojis and '✅' or '' .. '[IvLog] →', table.unpack(args))
+    print((IvKit.IvLog.emojis and '✅ ' or '') .. '[IvLog] →', table.unpack(args))
 end
 
 IvKit.IvLog.error = function(...)
@@ -112,7 +112,7 @@ IvKit.IvLog.error = function(...)
             args[i] = serialize(args[i])
         end
     end
-    print(IvKit.IvLog.emojis and '❌' or '' .. '[IvLog] →', table.unpack(args))
+    print((IvKit.IvLog.emojis and '❌' or '') .. '[IvLog] →', table.unpack(args))
 end
 
 IvKit.IvLog.warn = function(...)
@@ -123,7 +123,7 @@ IvKit.IvLog.warn = function(...)
             args[i] = serialize(args[i])
         end
     end
-    print(IvKit.IvLog.emojis and '⚠️' or '' .. '[IvLog] →', table.unpack(args))
+    print((IvKit.IvLog.emojis and '⚠️' or '') .. '[IvLog] →', table.unpack(args))
 end
 
 IvKit.IvLog.info = function(...)
@@ -134,7 +134,7 @@ IvKit.IvLog.info = function(...)
             args[i] = serialize(args[i])
         end
     end
-    print(IvKit.IvLog.emojis and 'ℹ️' or '' .. '[IvLog] →', table.unpack(args))
+    print((IvKit.IvLog.emojis and 'ℹ️' or '') .. '[IvLog] →', table.unpack(args))
 end
 
 IvKit.IvLog.unknown = function(...)
@@ -145,7 +145,7 @@ IvKit.IvLog.unknown = function(...)
             args[i] = serialize(args[i])
         end
     end
-    print(IvKit.IvLog.emojis and '❔' or '' .. '[IvLog] →', table.unpack(args))
+    print((IvKit.IvLog.emojis and '❔' or '') .. '[IvLog] →', table.unpack(args))
 end
 
 setreadonly(table, false)
@@ -244,11 +244,7 @@ IvKit.GetPlayers = function(exclude)
     local isList = typeof(exclude, 'table')
 
     for x, v in next, players do
-        local a = not exclude
-        local b = isList and table.find(exclude, x)
-        local c = not isList and x ~= exclude
-
-        if a or b or c then
+        if not exclude or (isList and not table.find(exclude, x)) or (not isList and x ~= exclude) then
             result[#result + 1] = v
         end
     end
@@ -283,7 +279,7 @@ IvKit.GetPlayer = function(query, caller)
     end
     return nil
 end
-
+ 
 IvKit.randomString = function(length)
     length = tonumber(length) or 5
 
@@ -368,7 +364,7 @@ IvKit.SignalRegistry = function(token)
         connections[connection.key] = nil
     end
 
-    actions.untilThen = function(self, signal, callback, condition, onTimeout, ...)
+    actions.untilThen = function(signal, callback, condition, onTimeout, ...)
         local alive = true
         local extraArgs = {...}
         local mainConn, killConn
@@ -438,7 +434,7 @@ IvKit.fileSys.loadAsset = function(path, url, delete, name)
     if isfile(fullPath) then
         CACHE_FILE = getcustomasset(fullPath)
     else
-        local success, response = pcall(Iv.HttpGet, url)
+        local success, response = pcall(IvKit.HttpGet, url)
         if not (success and response) then
             return 0, false
         end
