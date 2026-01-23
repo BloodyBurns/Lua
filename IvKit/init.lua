@@ -1,47 +1,69 @@
-if getgenv().IvKit then return print('IvKit') end
+if getgenv().IvKit then return IvKit.IvLog.warn('IvKit already loaded') end
 local init = os.clock()
 local _getgenv = getgenv()
 getgenv().IvKit = {
     HttpGet = function(url) return game:HttpGet(url) end,
-    plr = nil,
-
-    plrs = cloneref(game:GetService('Players')),
-    CoreGui = cloneref(game:GetService('CoreGui')),
-    Lighting = cloneref(game:GetService('Lighting')),
-    RunService = cloneref(game:GetService('RunService')),
-    HttpService = cloneref(game:GetService('HttpService')),
-    TweenService = cloneref(game:GetService('TweenService')),
-    SoundService = cloneref(game:GetService('SoundService')),
-    InputService = cloneref(game:GetService('UserInputService')),
-    TeleportService = cloneref(game:GetService('TeleportService')),
-    TextChatService = cloneref(game:GetService('TextChatService')),
-    CollectionService = cloneref(game:GetService('CollectionService')),
-    ReplicatedStorage = cloneref(game:GetService('ReplicatedStorage')),
-    MarketplaceService = cloneref(game:GetService('MarketplaceService')),
-    AvatarEditorService = cloneref(game:GetService('AvatarEditorService')),
-    VirtualInputManager = cloneref(game:GetService('VirtualInputManager'))
+    plrs = game:GetService('Players'),
+    CoreGui = game:GetService('CoreGui'),
+    Lighting = game:GetService('Lighting'),
+    RunService = game:GetService('RunService'),
+    HttpService = game:GetService('HttpService'),
+    TweenService = game:GetService('TweenService'),
+    SoundService = game:GetService('SoundService'),
+    UserInputService = game:GetService('UserInputService'),
+    TeleportService = game:GetService('TeleportService'),
+    TextChatService = game:GetService('TextChatService'),
+    CollectionService = game:GetService('CollectionService'),
+    ReplicatedStorage = game:GetService('ReplicatedStorage'),
+    MarketplaceService = game:GetService('MarketplaceService'),
+    AvatarEditorService = game:GetService('AvatarEditorService'),
+    VirtualInputManager = game:GetService('VirtualInputManager')
 }
 
 IvKit.plr = IvKit.plrs.LocalPlayer
 
 local players = {} --> Cache for Big-O
 local _type, _typeof = type, typeof --> Default Functionality
-local type = function(ref, typeValue, orValue) return not typeValue and _type(ref) or _type(ref) == typeValue or orValue and _type(ref) == orValue end
-local typeof = function(ref, typeValue, orValue) return not typeValue and _typeof(ref) or _typeof(ref) == typeValue or orValue and _typeof(ref) == orValue end
-local isMatch = function(ref, v1, v2, v3) return ref == v1 or ref == v2 or ref == v3 end
-local isArray = function(tbl)
-    if not type(tbl, 'table') then return false end
-    local n = #tbl
-    for x in pairs(tbl) do
-        if not type(x, 'number') or x < 1 or x > n or x % 1 ~= 0 then
-            return false
-        end
-    end
-    return true
+local _pack = function(...) return {n = select('#', ...), ...} end
+local _unpack = function(tbl) return table.unpack(tbl, 1, tbl.n) end
+local isMatch = function(ref, ...) for x, v in {...} do if ref == v then return true end end return false end
+local type = function(v, t, orT)
+    local vt = _type(v)
+    if not t then return vt end
+    return vt == t or (orT and vt == orT) or false
 end
 
-IvKit.type, IvKit.typeof, IvKit.isMatch = type, typeof, isMatch
+local typeof = function(v, t, orT)
+    local vt = _typeof(v)
+    if not t then return vt end
+    return vt == t or (orT and vt == orT) or false
+end
+
+local isArray = function(tbl)
+	if not type(tbl, 'table') then return false end
+	local keys, n = 0, #tbl
+	for x in tbl do
+		keys += 1
+		if not type(x, 'number') or x < 1 or x > n or x % 1 ~= 0 then
+			return false
+		end
+	end
+	return true
+end
+
+local getKeysSorted = function(tbl)
+	local sorted = {}
+	for x in tbl do sorted[#sorted + 1] = x end
+	table.sort(sorted, function(a, b)
+        local ta, tb = typeof(a), typeof(b)
+        if ta ~= tb then return ta < tb end
+        return tostring(a) < tostring(b)
+    end)
+	return sorted
+end
+
 for x, v in IvKit.plrs:GetPlayers() do players[v.Name] = v end
+IvKit.type, IvKit.typeof, IvKit.isMatch = type, typeof, isMatch
 IvKit.plrs.PlayerAdded:Connect(function(player) players[player.Name] = player end)
 IvKit.plrs.PlayerRemoving:Connect(function(player)
     if players[player.Name] then
@@ -49,262 +71,260 @@ IvKit.plrs.PlayerRemoving:Connect(function(player)
     end
 end)
 
-IvKit.IvLog = {emojis = true, live = true, prettyTables = true, maxInline = 3}
-local function serialize(tbl, indent, visited, maxInline)
-    indent = indent or 0
-    visited = visited or {}
-    maxInline = maxInline or IvKit.IvLog.maxInline
+IvKit.IvLog = IvKit.IvLog or {}
+IvKit.IvLog.emojis = IvKit.IvLog.emojis ~= false
+IvKit.IvLog.live = IvKit.IvLog.live ~= false
+IvKit.IvLog.prettyTables = IvKit.IvLog.prettyTables ~= false
+IvKit.IvLog.maxInline = IvKit.IvLog.maxInline or 3
+IvKit.IvLog.sortKeys = IvKit.IvLog.sortKeys ~= false
 
-    if visited[tbl] then return '<circular>' end
-    visited[tbl] = true
+local serialize; serialize = function(t, indent, stack, maxInline)
+	indent = indent or 0
+	stack = stack or {}
+	maxInline = maxInline or IvKit.IvLog.maxInline
 
-    local keys = 0
-    for x in pairs(tbl) do keys += 1 end
-    local array = isArray(tbl)
+	if stack[t] then return '<self>' end
+	stack[t] = true
 
-    if keys <= maxInline then
-        local parts = {}
-        if array then
-            for i = 1, #tbl do
-                local v = tbl[i]
-                table.insert(parts, type(v, 'table') and serialize(v, indent, visited, maxInline) or tostring(v))
-            end
-            return '[' .. table.concat(parts, ', ') .. ']'
-        else
-            for k, v in pairs(tbl) do
-                local valStr = type(v, 'table') and serialize(v, indent, visited, maxInline) or tostring(v)
-                table.insert(parts, tostring(k) .. '=' .. valStr)
-            end
-            return '{' .. table.concat(parts, ', ') .. '}'
-        end
-    end
+	local keys, hasNested = 0, false
+	for x, v in t do
+		keys += 1
+		if not hasNested and type(v, 'table') then
+			hasNested = true
+		end
+	end
 
-    local spacing = string.rep('  ', indent)
-    local result = {array and '[' or '{'}
-    for k, v in pairs(tbl) do
-        local valStr = type(v, 'table') and serialize(v, indent + 1, visited, maxInline) or tostring(v)
-        if array then
-            table.insert(result, spacing .. '  ' .. valStr .. ',')
-        else
-            table.insert(result, spacing .. '  ' .. tostring(k) .. ' = ' .. valStr .. ',')
-        end
-    end
-    table.insert(result, spacing .. (array and ']' or '}'))
-    return table.concat(result, '\n')
+	local array = isArray(t)
+	if keys == 0 then
+		stack[t] = nil
+		return '{}'
+	end
+
+	local output = function(output) stack[t] = nil return output end
+	local valStr = function(v) return type(v, 'table') and serialize(v, indent + 1, stack, maxInline) or tostring(v) end
+
+	if keys <= maxInline and not hasNested then
+		local parts = {}
+		if array then
+			for i = 1, #t do parts[#parts + 1] = tostring(t[i]) end
+			return output('{' .. table.concat(parts, ', ') .. '}')
+		end
+
+		if IvKit.IvLog.sortKeys then
+			for x, v in ipairs(getKeysSorted(t)) do
+				parts[#parts + 1] = tostring(v) .. ' = ' .. tostring(t[v])
+			end
+		else
+			for x, v in t do
+				parts[#parts + 1] = tostring(x) .. ' = ' .. tostring(v)
+			end
+		end
+
+		return output('{' .. table.concat(parts, ', ') .. '}')
+	end
+
+	local spacing = string.rep('  ', indent)
+	local result = { '{' }
+
+	if array then
+		for i = 1, #t do
+			result[#result + 1] = spacing .. '  ' .. valStr(t[i]) .. ','
+		end
+	else
+		if IvKit.IvLog.sortKeys then
+			for x, v in ipairs(getKeysSorted(t)) do
+				result[#result + 1] = spacing .. '  ' .. tostring(v) .. ' = ' .. valStr(t[v]) .. ','
+			end
+		else
+			for x, v in t do
+				result[#result + 1] = spacing .. '  ' .. tostring(x) .. ' = ' .. valStr(v) .. ','
+			end
+		end
+	end
+
+	result[#result + 1] = spacing .. '}'
+	return output(table.concat(result, '\n'))
 end
 
-IvKit.IvLog.success = function(...)
-    if not IvKit.IvLog.live then return end
-    local args = {...}
-    for i = 1, #args do
-        if IvKit.IvLog.prettyTables and type(args[i], 'table') then
-            args[i] = serialize(args[i])
-        end
-    end
-    print((IvKit.IvLog.emojis and '✅ ' or '') .. '[IvLog] →', table.unpack(args))
+local log = function(prefix, emoji, ...)
+	if not IvKit.IvLog.live then return end
+	local args = { ... }
+	for i = 1, #args do
+		if IvKit.IvLog.prettyTables and type(args[i], 'table') then
+			args[i] = serialize(args[i])
+		end
+	end
+
+    print(`{IvKit.IvLog.emojis and (emoji .. ' ') or ''}[IvLog] →`, table.unpack(args))
 end
 
-IvKit.IvLog.error = function(...)
-    if not IvKit.IvLog.live then return end
-    local args = {...}
-    for i = 1, #args do
-        if IvKit.IvLog.prettyTables and type(args[i], 'table') then
-            args[i] = serialize(args[i])
-        end
-    end
-    print((IvKit.IvLog.emojis and '❌' or '') .. '[IvLog] →', table.unpack(args))
-end
-
-IvKit.IvLog.warn = function(...)
-    if not IvKit.IvLog.live then return end
-    local args = {...}
-    for i = 1, #args do
-        if IvKit.IvLog.prettyTables and type(args[i], 'table') then
-            args[i] = serialize(args[i])
-        end
-    end
-    print((IvKit.IvLog.emojis and '⚠️' or '') .. '[IvLog] →', table.unpack(args))
-end
-
-IvKit.IvLog.info = function(...)
-    if not IvKit.IvLog.live then return end
-    local args = {...}
-    for i = 1, #args do
-        if IvKit.IvLog.prettyTables and type(args[i], 'table') then
-            args[i] = serialize(args[i])
-        end
-    end
-    print((IvKit.IvLog.emojis and 'ℹ️' or '') .. '[IvLog] →', table.unpack(args))
-end
-
-IvKit.IvLog.unknown = function(...)
-    if not IvKit.IvLog.live then return end
-    local args = {...}
-    for i = 1, #args do
-        if IvKit.IvLog.prettyTables and type(args[i], 'table') then
-            args[i] = serialize(args[i])
-        end
-    end
-    print((IvKit.IvLog.emojis and '❔' or '') .. '[IvLog] →', table.unpack(args))
-end
+IvKit.IvLog.success = function(...) log('success', '✅', ...) end
+IvKit.IvLog.error = function(...) log('error', '❌', ...) end
+IvKit.IvLog.warn = function(...) log('warn', '⚠️', ...) end
+IvKit.IvLog.info = function(...) log('info', 'ℹ️', ...) end
+IvKit.IvLog.unknown = function(...) log('unknown', '❔', ...) end
 
 setreadonly(table, false)
-table.size = function(tbl)
-    if not type(tbl, 'table') then return end
-    if #tbl > 0 then return #tbl end
+table.size = function(t)
+    if not type(t, 'table') then return 0 end
     local n = 0
-    for x in next, tbl do n += 1 end
+    for x in next, t do n += 1 end
     return n
 end
 
-table.purge = function(tbl)
-    if not type(tbl, 'table') then return end
-    local isHash = #tbl == 0
-
-    if isHash then
-        for x0 in tbl do
-            tbl[x0] = nil
-        end
-    else
-        table.clear(tbl)
-    end
+table.purge = function(t)
+    if not type(t, 'table') then return false end
+    table.clear(t)
+    return true
 end
 
-table.sample = function(tbl, n, noRep)
-    if not (type(tbl, 'table')) then return end
-    n = (type(n, 'number') and n > 1) and math.floor(n) or nil
+table.sample = function(t, n, noRep)
+    if not type(t, 'table') then return nil end
+    local arr = (#t > 0) and t or (function()
+        local a = {}
+        for x, v in next, t do a[#a+1] = v end
+        return a
+    end)()
 
-    local isHash = #tbl == 0
-    local temp = tbl
-
-    if isHash then
-        temp = {}
-        for x0, v0 in tbl do
-            table.insert(temp, v0)
-        end
-    end
-
-    if #temp == 0 then return nil end
-
-    if not n then
-        return temp[math.random(1, #temp)]
-    else
-        local samples = {}
-        n = math.min(n, #temp)
-        while #samples < n do
-            local val = temp[math.random(1, #temp)]
-            if noRep then
-                if not table.find(samples, val) then
-                    table.insert(samples, val)
-                end
-            else
-                table.insert(samples, val)
-            end
-        end
-        return samples
-    end
-end
-
-table.flat = function(tbl, deep)
-    if not type(tbl, 'table') then return end
+    local len = #arr
+    if len == 0 then return nil end
+    if not n then return arr[math.random(len)] end
+    n = math.min(math.floor(n), len)
     local result = {}
-    local function flatten(t)
-        for _, v in pairs(t) do
-            if deep and type(v, 'table') then
-                flatten(v)
-            else
-                table.insert(result, v)
+
+    if noRep then
+        local used = {}
+        while #result < n do
+            local i = math.random(len)
+            if not used[i] then
+                used[i] = true
+                result[#result+1] = arr[i]
             end
+        end
+    else
+        for i = 1, n do
+            result[i] = arr[math.random(len)]
         end
     end
 
-    flatten(tbl)
     return result
 end
 
-table.invoke = function(tbl, fn, self, ...)
-    if self then
-        for x, v in tbl do
-            fn(self, v, ...)
+table.flat = function(t, deep)
+    if not type(t, 'table') then return nil end
+    local result = {}
+
+    local flatten; flatten = function(v)
+        if deep and type(v, 'table') then
+            for x, x in next, v do flatten(x) end
+            return
         end
-    else
-        for x, v in tbl do
-            fn(v)
-        end
+        result[#result + 1] = v
     end
+
+    for x, v in next, t do flatten(v) end
+    return result
 end
 
+table.invoke = function(t, fn, self, ...)
+    if not type(t, 'table') or not type(fn, 'function') then return false end
+    local callback = (self ~= nil) and function(v, k, ...) return fn(self, v, k, ...) end or function(v, k, ...) return fn(v, k, ...) end
+    for x, v in next, t do callback(v, x, ...) end
+    return true
+end
 setreadonly(table, true)
 
 IvKit.GetObjects = function(asset) return game:GetObjects(`rbxassetid://{asset}`)[1] end
-IvKit.JSON = function(method, data) return isMatch(method, 'enc', 'encode', 'Encode') and IvKit.HttpService:JSONEncode(data) or IvKit.HttpService:JSONDecode(data) end
-IvKit.GetPlayers = function(exclude)
-    if not exclude then return players end
-    local result = {}
-    local isList = typeof(exclude, 'table')
+IvKit.GetPlayers = function(...)
+	local result = {}
+	local args = {...}
+	local toExclude
 
-    for x, v in next, players do
-        if not exclude or (isList and not table.find(exclude, x)) or (not isList and x ~= exclude) then
-            result[#result + 1] = v
-        end
-    end
+	if #args > 0 then
+		toExclude = {}
+        for x, v in ipairs(args) do
+			if typeof(v, 'Instance') and v:IsA('Player') then
+				toExclude[v.Name] = true
+			elseif type(v, 'string') then
+				toExclude[v] = true
+			end
+		end
+	end
 
-    return result
+	for x, v in players do
+		if not toExclude or not toExclude[x] then
+			result[#result + 1] = v
+		end
+	end
+
+	return result
 end
 
 IvKit.GetPlayer = function(query, caller)
     if not type(query, 'string') then return nil end
-    local O1 = players[query]
+
+    local me = caller or IvKit.plr
+	local entry = query:lower()
+
+	if entry == 'me' then return me end
+	if entry == 'random' then return table.sample(players) end
+	if entry == 'others' then
+		local new = {}
+		for x, v in next, players do
+			if v ~= me then
+				new[#new + 1] = v
+			end
+		end
+		return new
+	end
+
+    local O1 = players[query] or players[entry]
     if O1 then return O1 end
 
-    if query:lower() == 'me' then return caller or IvKit.plr end
-    if query:lower() == 'random' then return table.sample(players) end
-    if query:lower() == 'others' then
-        local new = {}
-        for x, v in next, players do
-            if v ~= (caller or IvKit.plr) then
-                table.insert(new, v)
-            end
-        end
-        return new
-    end
-
-    query = query:lower()
     for x, v in next, players do
         local name, display = x:lower(), v.DisplayName:lower()
-
-        if name:sub(1, #query) == query or display:sub(1, #query) == query then
+        if name:sub(1, #entry) == entry or display:sub(1, #entry) == entry then
             return v
         end
     end
     return nil
 end
  
-IvKit.randomString = function(length)
-    length = tonumber(length) or 5
+IvKit.randomString = function(minLen, maxLen)
+    minLen = tonumber(minLen) or 5
+    maxLen = math.clamp(tonumber(maxLen) or minLen, minLen, 300)
 
+    local length = math.random(minLen, maxLen)
     local randomized = ''
-    for i = 1, length do
+
+    while #randomized < length do
         local byte = math.random(48, 122)
         if (byte >= 48 and byte <= 57) or (byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122) then
-            randomized ..= string.char(byte)
+            randomized = randomized .. string.char(byte)
         end
     end
+
     return randomized
 end
 
 local sharedSignals = {}
 IvKit.SignalRegistry = function(token)
-    if token and sharedSignals[token] then return sharedSignals[token] end
-    local connections, actions = {}, {}
-    actions.getConnection = function(entry)
-        if not (type(entry, 'string', 'number') or typeof(entry, 'RBXScriptConnection')) then return nil end
-        if connections[entry] then return connections[entry] end
+	if token ~= nil then
+		local cached = sharedSignals[token]
+		if cached ~= nil then
+			return cached
+		end
+	end
 
-        --> fallback
-        if typeof(entry, 'RBXScriptConnection') then
+	local connections, registry = {}, {}
+    registry.getConnection = function(entry)
+        if type(entry, 'string', 'number') then --> id lookup
+            return connections[entry]
+        end
+
+        if typeof(entry, 'RBXScriptConnection') then --> fallback :: RBXScriptConnection lookup
             for x, v in connections do
-                if v.listener == entry then
+                if v and v.listener == entry then
                     return v
                 end
             end
@@ -313,28 +333,32 @@ IvKit.SignalRegistry = function(token)
         return nil
     end
 
-    actions.clear = function()
+    registry.clear = function()
         for x, v in connections do
-            if type(v, 'table') then
-                v.listener:Disconnect()
-                connections[x] = nil
+            local listener = v and v.listener
+            if listener then listener:Disconnect() end
+            if v then
+                v.listener = nil
+                v.event = nil
+                v.callback = nil
+                v.fire = nil
+                v.suspended = true
             end
+            connections[x] = nil
         end
     end
-
-    actions.suspend = function(id)
-        local connection = actions.getConnection(id)
-        if not connection then return end
-        connections[connection.key].suspended = true
+    
+    registry.suspend = function(id)
+        local entry = registry.getConnection(id)
+        if entry then entry.suspended = true end
     end
 
-    actions.resume = function(id)
-        local connection = actions.getConnection(id)
-        if not connection then return end
-        connections[connection.key].suspended = false
+    registry.resume = function(id)
+        local entry = registry.getConnection(id)
+        if entry then entry.suspended = false end
     end
 
-    actions.count = function()
+    registry.count = function()
         local n = 0
         for x in connections do
             n += 1
@@ -342,122 +366,246 @@ IvKit.SignalRegistry = function(token)
         return n
     end
 
-    actions.connect = function(id, signal, callback, ...)
-        if not (id and signal and callback) or actions.getConnection(id) then return end
-        local tI_arP = ...
-        connections[id] = {
-            key = id,
-            suspended = false,
-            event = signal,
-            callback = callback,
-            listener = signal:Connect(function(...)
-                if connections[id].suspended then return end
-                callback(..., tI_arP)
-            end)
-        }
+    registry.connect = function(id, signal, callback, ...)
+        if not (id and signal and callback) then return end
+        local entry = registry.getConnection(id)
+        if entry then return entry end
+
+        local extra = _pack(...)
+		
+        entry = {
+			key = id,
+			suspended = false,
+			event = signal,
+			callback = callback,
+		}
+
+        entry.listener = signal:Connect(function(...)
+			if entry.suspended then return end
+			callback(..., _unpack(extra))
+		end)
+
+        entry.Fire = function(self, ...)
+			if self.suspended then return end
+			return self.callback(..., _unpack(extra))
+		end
+
+        connections[id] = entry
+        return entry
     end
 
-    actions.disconnect = function(id)
-        local connection = actions.getConnection(id)
-        if not connection then return end
-        connection.listener:Disconnect()
-        connections[connection.key] = nil
+    registry.disconnect = function(id)
+        local entry = registry.getConnection(id)
+        if not entry then return end
+        local listener = entry.listener
+        if listener then listener:Disconnect() end
+
+        entry.listener = nil
+        entry.event = nil
+        entry.callback = nil
+        entry.fire = nil
+        entry.suspended = true
+        connections[id] = nil
     end
 
-    actions.untilThen = function(signal, callback, condition, onTimeout, ...)
-        local alive = true
-        local extraArgs = {...}
-        local mainConn, killConn
+    registry.untilThen = function(signal, callback, condition, onTimeout, ...)
+        if not (typeof(signal, 'RBXScriptSignal') and type(callback, 'function')) then return end
+
+		local alive = true
+		local extra = _pack(...)
+		local mainConn, killConn
 
         local cleanup = function()
-            if not alive then return end
-            alive = false
-            if mainConn then mainConn:Disconnect() end
-            if killConn then killConn:Disconnect() end
+			if not alive then return end
+			alive = false
+
+			if mainConn then mainConn:Disconnect() mainConn = nil end
+			if killConn then killConn:Disconnect() killConn = nil end
         end
 
-        mainConn = signal:Connect(function(...)
-            if not alive then return end
-            callback(...)
-            if type(condition) == 'function' and condition() then
-                cleanup()
+		mainConn = signal:Connect(function(...)
+			if not alive then return end
+			local stop = callback(..., _unpack(extra))
+            if stop then
+                return cleanup()
             end
-        end)
 
-        if typeof(condition) == 'RBXScriptSignal' then
-            killConn = condition:Connect(function()
-                cleanup()
-            end)
+			if type(condition, 'function') and condition() then
+				cleanup()
+			end
+		end)
 
-        elseif type(condition) == 'number' then
-            task.delay(condition, function()
-                if not alive then return end
-                cleanup()
-                if onTimeout then
-                    onTimeout(extraArgs)
-                end
-            end)
+        if type(condition, 'number') then
+			task.delay(condition, function()
+				if not alive then return end
+				cleanup()
+				if type(onTimeout, 'function') then
+					onTimeout(_unpack(extra))
+				end
+			end)
+        elseif typeof(condition, 'RBXScriptSignal') then
+			killConn = condition:Connect(cleanup)
+		end
+
+		return cleanup, mainConn
+    end
+
+	local api = setmetatable(connections, {__index = registry})
+	if token ~= nil then sharedSignals[token] = api end
+	return api
+end
+
+IvKit.fs = {}
+IvKit.fs.normalizePath = function(path)
+    if not type(path, 'string') then return '' end
+    path = path:gsub('\\', '/'):gsub('/+', '/')
+    if #path > 1 then path = path:gsub('/$', '') end
+    return path
+end
+
+IvKit.fs.joinPath = function(...)
+    local result = {}
+    for i = 1, select('#', ...) do
+        local part = select(i, ...)
+        if type(part, 'string') and part ~= '' then
+            result[#result + 1] = IvKit.fs.normalizePath(part)
         end
-
-        return mainConn
     end
-
-    if token and not sharedSignals[token] then sharedSignals[token] = connections end
-    return setmetatable(connections, {__index = actions})
+    return IvKit.fs.normalizePath(table.concat(result, '/'))
 end
 
-IvKit.fileSys = {}
-IvKit.fileSys.save = function(path, name, data)
-    if not writefile then return warn(`Failed to Save Data [{name}] : Executor not Supported`) end
-    writefile(`{path}/{name}`, data)
+IvKit.fs.dirName = function(path)
+    path = IvKit.fs.normalizePath(path)
+    local dir = path:match('^(.*)/[^/]+$')
+    return dir or ''
 end
 
-IvKit.fileSys.read = function(path, name)
-    if not (isfile and readfile) then warn(`Failed to Read Data [{name}] : Executor not Supported`) end
-    return isfile(`{path}/{name}`) and readfile(`{path}/{name}`)
+IvKit.fs.exists = function(path)
+    path = IvKit.fs.normalizePath(path)
+    if path == '' then return false end
+    if isfile and isfile(path) then return true end
+    if isfolder and isfolder(path) then return true end
+    return false
 end
 
-IvKit.fileSys.exist = function(path, method)
-    if not (path and type(method, 'function')) then return false end
-    return method(path)
+IvKit.fs.readFile = function(path)
+    if not readfile then return nil end
+    path = IvKit.fs.normalizePath(path)
+    if path == '' then return nil end
+    if isfile and not isfile(path) then return nil end
+    local ok, res = pcall(readfile, path)
+    return ok and res or nil
 end
 
-IvKit.fileSys.loadAsset = function(path, url, delete, name)
-    if not (path and (isfile(path) or url) and writefile and isfolder and makefolder and isfile and delfile and getcustomasset) then
-        return 0, false
-    end
+IvKit.fs.writeFile = function(path, data)
+    if not writefile or not type(data, 'string') then return false end
+    path = IvKit.fs.normalizePath(path)
+    if path == '' then return false end
+    local ok = pcall(writefile, path, data)
+    return ok
+end
 
-    local fileName = type(name, 'string') and name or IvKit.randomString(5, 10) .. '.png'
-    local fullPath = isfile(path) and path or `{path}\\{fileName}`
+IvKit.fs.appendFile = function(path, data)
+    if not appendfile or not type(data, 'string') then return false end
+    path = IvKit.fs.normalizePath(path)
+    if path == '' then return false end
+    local ok = pcall(appendfile, path, data)
+    return ok
+end
 
-    local CACHE_FILE
-    if isfile(fullPath) then
-        CACHE_FILE = getcustomasset(fullPath)
-    else
-        local success, response = pcall(IvKit.HttpGet, url)
-        if not (success and response) then
-            return 0, false
+IvKit.fs.listFiles = function(path)
+    if not listfiles then return nil end
+    path = IvKit.fs.normalizePath(path)
+    if path == '' then return nil end
+    local ok, res = pcall(listfiles, path)
+    return ok and type(res, 'table') and res or nil
+end
+
+IvKit.fs.makeDir = function(path)
+	if not makefolder then return end
+    path = IvKit.fs.normalizePath(path)
+    if path == '' then return false end
+    local current = ''
+    for seg in path:gmatch('[^/]+') do
+        current = current == '' and seg or (current .. '/' .. seg)
+        if not isfolder(current) then
+            makefolder(current)
         end
+    end
+    return true
+end
 
-        writefile(fullPath, response)
-        CACHE_FILE = getcustomasset(fullPath)
+IvKit.fs.deleteFile = function(path)
+    if not delfile then return false end
+    path = IvKit.fs.normalizePath(path)
+    if path == '' then return false end
+    if isfile and not isfile(path) then return false end
+    local ok = pcall(delfile, path)
+    return ok
+end
 
-        task.delay(5, function()
-            if delete then
-                delfile(fullPath)
-            end
-        end)
+IvKit.fs.deleteFolder = function(path)
+    if not delfolder then return false end
+    path = IvKit.fs.normalizePath(path)
+    if path == '' then return false end
+    if isfolder and not isfolder(path) then return false end
+    local ok = pcall(delfolder, path)
+    return ok
+end
+
+IvKit.fs.loadFile = function(path, chunkname)
+    if not loadfile then return end
+    path = IvKit.fs.normalizePath(path)
+    if path == '' then return nil end
+    local ok, fn, err = pcall(loadfile, path, chunkname)
+    if not ok or not type(fn, 'function') then return nil, err end
+    return fn
+end
+
+IvKit.fs.doFile = function(path)
+    if not dofile then return false end
+    path = IvKit.fs.normalizePath(path)
+    if path == '' then return false end
+    local ok = pcall(dofile, path)
+    return ok
+end
+
+IvKit.fs.loadAsset = function(folder, url, deleteOld, key)
+    if not (type(folder, 'string') and type(url, 'string')) then return 0, false  end
+    if not (crypt and crypt.hash and readfile and writefile and isfile and delfile and getcustomasset) then  return 0, false end
+
+    key = type(key, 'string') and key or 'image'
+    folder = IvKit.fs.normalizePath(folder)
+    IvKit.fs.makeDir(folder)
+
+    local hash = crypt.hash(url, 'sha256'):gsub('[^%w]', '')
+	local fileName = `{key}_{hash}.png`
+    local filePath = IvKit.fs.joinPath(folder, fileName)
+    local metaPath = IvKit.fs.joinPath(folder, `{key}.meta`)
+
+    if not isfile(filePath) then
+        local ok, bytes = pcall(IvKit.HttpGet, url)
+        if not (ok and type(bytes, 'string')) then return 0, false end
+        if not IvKit.fs.writeFile(filePath, bytes) then  return 0, false end
     end
 
-    return CACHE_FILE, true, fullPath
+    if deleteOld and isfile(metaPath) then
+        local ok, old = pcall(readfile, metaPath)
+        if ok and type(old, 'string') and old ~= fileName then
+            pcall(delfile, IvKit.fs.joinPath(folder, old:gsub('%s+$', '')))
+        end
+    end
+
+    pcall(writefile, metaPath, fileName)
+    return getcustomasset(filePath), true, filePath
 end
 
 IvKit.benchmark = function(fn, ...)
-    local start = os.clock()
-    local results = {pcall(fn, ...)}
-    local elapsed = os.clock() - start
-    local success = table.remove(results, 1)
-    return success and table.unpack(results), elapsed
+    local t0 = os.clock()
+    local results = _pack(pcall(fn, ...))
+    results[results.n+1] = os.clock() - t0
+    results.n += 1
+    return _unpack(results, 1, results.n)
 end
 
 IvKit.timeFmt = function(elapse)
