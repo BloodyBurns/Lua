@@ -1,5 +1,4 @@
-setfenv(1, IvKit)
-
+if not getgenv().IvKit then loadstring(game:HttpGet('https://raw.githubusercontent.com/BloodyBurns/Lua/refs/heads/main/IvKit/init.lua'))() end; setfenv(1, IvKit)
 getgenv()._R15Emotes = getgenv()._R15Emotes or {
     UI_ROOT = CoreGui:FindFirstChild('R15Emotes') or GetObjects(10772412958),
     animation = Instance.new('Animation'),
@@ -169,3 +168,4 @@ for x, v in readEmotes() do
     end)
 
 end
+
