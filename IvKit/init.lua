@@ -63,7 +63,7 @@ local getKeysSorted = function(tbl)
 end
 
 for x, v in IvKit.plrs:GetPlayers() do players[v.Name] = v end
-IvKit.type, IvKit.typeof, IvKit.isMatch = type, typeof, isMatch
+IvKit.type, IvKit.typeof, IvKit.isMatch, IvKit._pack, IvKit._unpack = type, typeof, isMatch, _pack, unpack
 IvKit.plrs.PlayerAdded:Connect(function(player) players[player.Name] = player end)
 IvKit.plrs.PlayerRemoving:Connect(function(player)
     if players[player.Name] then
@@ -621,3 +621,4 @@ setmetatable(getgenv().IvKit, {
 })
 
 IvKit.IvLog.info('IvKit load time:', IvKit.timeFmt(os.clock() - init))
+
