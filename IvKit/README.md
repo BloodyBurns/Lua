@@ -1,83 +1,94 @@
-**IvKit API Documentation**
+# IvKit API Documentation
 
 ---
 
 ## 1. Introduction
 
-`IvKit` is a global utility framework. It consolidates commonly used services, utility functions, enhanced type checking, player-management caches, signal handling, file system abstractions, logging helpers, and timing utilities into a single global table: `getgenv().IvKit`.
+`IvKit` is a global utility framework exposed via `getgenv().IvKit`.
 
-- **Namespace**: `IvKit` (in `getgenv()`)
+IvKit is designed to be **setfenv-first** and act as a controlled global runtime.
 
 ---
 
 ## 2. Initialization
 
 ```lua
---> Prevent reinitialization
 if not getgenv().IvKit then
     loadstring(game:HttpGet('https://raw.githubusercontent.com/BloodyBurns/Lua/refs/heads/main/IvKit/init.lua'))()
 end
 
---> Reassigns the active function’s environment reference to IvKit, rerouting all globals through IvKit's table proxy for isolated lexical binding
-setfenv(1, IvKit) --> always have this to use IvKit
-
---> Load script here
---> e.g., loadstring(...)()
+setfenv(1, IvKit)
 ```
 
-On first execution, `IvKit` caches services, sets up helpers, and prints load time:
-
-```lua
-print('IvKit load time:', timeFmt(os.clock() - init))
-```
-
+IvKit initializes once, caches services, installs globals, and reports load time via `IvLog`.
+ 
 ---
 
 ## 3. Services & Globals
 
-| Property             | Description                        |
-| -------------------- | ---------------------------------- |
-| HttpGet(url)         | Shorthand for `game:HttpGet(url)`. |
-| plr                  | Local player shortcut.             |
-| plrs                 | Players service.                   |
-| CoreGui              | CoreGui service.                   |
-| Lighting             | Lighting service.                  |
-| RunService           | RunService.                        |
-| HttpService          | HttpService.                       |
-| TweenService         | TweenService.                      |
-| SoundService         | SoundService.                      |
-| InputService         | User input service.                |
-| TeleportService      | TeleportService.                   |
-| TextChatService      | TextChat service.                  |
-| CollectionService    | Collection service.                |
-| ReplicatedStorage    | Replicated storage.                |
-| MarketplaceService   | Marketplace service.               |
+### Core
+
+| Property            | Description                |
+| ------------------- | -------------------------- |
+| HttpGet(url)        | Wrapper for `game:HttpGet` |
+| plr                 | `Players.LocalPlayer`      |
+| plrs                | Players service            |
+| CoreGui             | CoreGui service            |
+| Lighting            | Lighting service           |
+| RunService          | RunService                 |
+| HttpService         | HttpService                |
+| TweenService        | TweenService               |
+| SoundService        | SoundService               |
+| UserInputService    | UserInputService           |
+| TeleportService     | TeleportService            |
+| TextChatService     | TextChatService            |
+| CollectionService   | CollectionService          |
+| ReplicatedStorage   | ReplicatedStorage          |
+| MarketplaceService  | MarketplaceService         |
+| AvatarEditorService | AvatarEditorService        |
+| VirtualInputManager | VirtualInputManager        |
 
 ---
 
-## 4. Player Management
+## 4. Global Utility Functions
 
-### 4.1 Cache
-
-Internally maintains a `players` table keyed by name for O(1) lookup.
-
-### 4.2 Functions
-
-
-| Function                    | Signature                                  | Description                                                                  |                                                                  |
-| --------------------------- | ------------------------------------------ | ---------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| GetPlayers(exclude)       | (exclude: string)                          | {string}) -> {Players}                                                       | Returns all current players, optionally excluding given name(s). |
-| GetPlayer(query, caller?) | (query: string, caller?: Player) -> Player | Flexible lookup by name prefix, special keywords ('me', 'random', 'others'). |                                                                  |
+| Function                   | Description                                        |
+| -------------------------- | -------------------------------------------------- |
+| type(v, expected?, alt?)   | Returns true if ref matches the expected type(s). If no type is given, returns the type string.       |
+| typeof(v, expected?, alt?) | Same as type, but uses Luau's typeof. Returns true or the actual type string.    |
+| isMatch(ref, ...)          | Returns true if `ref` equals any provided value    |
+| _pack(...) | Packs varargs into `{n = select('#', ...), ...}` |
+| _unpack(tbl) | Unpacks a `_pack` table safely using `tbl.n` |
 
 ---
 
-## 5. Type Checking
+## 5. Player Management
 
-| Function                     | Description                                                                                           |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------- |
-| type(ref, expected?, alt?)   | Returns **true** if `ref` matches the expected type(s). If no type is given, returns the type string. |
-| typeof(ref, expected?, alt?) | Same as `type`, but uses Luau's `typeof`. Returns **true** or the actual type string.                 |
-| isMatch(ref, v1, v2, v3)     | Returns **true** if `ref` matches any of the provided values.                                         |
+IvKit maintains an internal player cache keyed by name for O(1) lookup.
+
+### Functions
+
+| Function                  | Signature                                    | Description                                                       |
+| ------------------------- | -------------------------------------------- | ----------------------------------------------------------------- |
+| GetPlayers(...exclude)    | (...string : Player) -> {Player}             | Returns all players excluding names or instances                  |
+| GetPlayer(query, caller?) | (string, Player?) -> Player : {Player} : nil | Supports `me`, `random`, `others`, prefix + display/name matching |
+
+### Examples
+
+```lua
+--> get all players except local player
+local others = GetPlayers(plr)
+
+--> resolve player by prefix
+local target = GetPlayer('blo')
+
+--> special keywords
+local me = GetPlayer('me')
+local randomPlayer = GetPlayer('random')
+local everyoneElse = GetPlayer('others')
+```
+
+---
 
 ## 6. Table Utilities
 
@@ -89,100 +100,28 @@ Internally maintains a `players` table keyed by name for O(1) lookup.
 | table.flat   | (tbl: table, deep?: boolean) → {any}                     | Returns a flattened array of values. If `deep` is true, recurses into nested tables. |
 | table.invoke | (tbl: table, fn: function, self?: any, ...)              | Invokes `fn(value, ...)` for each element; optional self allows colon calls.         |
 
-**Recursive flattening logic (deep mode)**:
-
-When `deep` is true, `table.flat(tbl, true)` will recursively flatten any nested tables found within both arrays and dictionaries into a single-level array.
-
-Example:
+### Examples
 
 ```lua
-local result = table.flat({1, {2, 3}, {a = 4, b = {5, 6}}}, true)
---> result = {1, 2, 3, 4, 5, 6}
+local t = {1, 2, 3, a = 4}
+
+print(table.size(t)) --> 4
+
+print(table.sample(t)) --> random value
+print(table.sample(t, 2, true)) --> two unique samples
+
+local flat = table.flat({1, {2, {3}}}, true)
+--> {1, 2, 3}
+
+local obj = {}
+table.invoke({1,2,3}, function(self, v)
+    print(v)
+end, obj)
 ```
 
 ---
 
-## 7. SignalRegistry
-Manages RBXScriptConnections with ID-based control, suspension, and conditional listeners.
-
-| Method        | Signature                                               | Description                                                                |
-| ------------- | ------------------------------------------------------- | -------------------------------------------------------------------------- |
-| connect       | (id, signal, callback, ...extraArgs)                    | Connects a signal and stores it under an ID. Ignores if already connected. |
-| disconnect    | (id)                                                    | Disconnects and removes the stored listener for the given ID.              |
-| suspend       | (id or RBXScriptConnection)                             | Temporarily disables the listener without disconnecting it.                |
-| resume        | (id or RBXScriptConnection)                             | Re-enables a suspended connection.                                         |
-| count         | () → number                                             | Returns the number of managed connections.                                 |
-| clear         | () → void                                               | Disconnects and removes all connections.                                   |
-| getConnection | (id or RBXScriptConnection) → connectionObject or nil   | Retrieves a stored connection entry by ID or listener.                     |
-| untilThen     | (signal, callback, condition, onTimeout?, ...extraArgs) | Connects once and auto-disconnects when condition is met, another signal fires, or timeout expires. condition can be a function, signal, or number.|
-
-Usage:
-
-```lua
---> Isolated Signals Manager
-local signals = SignalRegistry()
-
---> Shared Signals Manager (token)
-local shared = SignalRegistry('token123')
-
---> Connect normally
-signals.connect('workspaceListener', workspace.ChildAdded, function(obj)
-    print('Child added:', obj.Name)
-end)
-
---> Suspend & Resume
-signals.suspend('workspaceListener') --> pause listener
-signals.resume('workspaceListener')  --> resume listener
-
---> Disconnect
-signals.disconnect('workspaceListener') --> remove listener
-
---> untilThen Examples
---> 1. Callback-based condition (stops when condition() returns true)
-signals.untilThen(player.Character.Humanoid.Jumping, function()
-    print('Player is jumping')
-end, function()
-    return player.Character and player.Character.Humanoid.Jump == true
-end)
-
---> 2. Signal-based condition (stops when stopSignal fires)
-local stopSignal = workspace.ChildAdded
-signals.untilThen(player.Character.Humanoid.Jumping, function()
-    print('Player is jumping')
-end, stopSignal)
-
---> 3. Timeout-based (auto-disconnect after 5s)
-signals.untilThen(player.Character.Humanoid.Jumping, function()
-    print('Player is jumping')
-end, 5, function()
-    print('Listener stopped after 5s timeout')
-end)
-
---> 4. Early success (condition true before timeout)
-signals.untilThen(player.Character.Humanoid.Jumping, function()
-    print('Player is jumping')
-end, function()
-    if player.Character.Humanoid.Jump == true then
-		print('Condition met early')
-	end
-    return jumped
-end, 5)
-```
-
----
-
-## 8. File System (*fileSys*)
-
-| Function                             | Signature                       | Description                                                                                |
-| ------------------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------ |
-| save(path, name, data)               | (string, string, string) -> nil | Saves data to path/name if writefile is available.                                         |
-| read(path, name)                     | (string, string) -> string      | Reads contents of path/name if supported.                                                  |
-| exist(path, method)                  | (string, function) -> boolean   | Checks existence using the provided function (isfile, isfolder, etc).                      |
-| loadAsset(path, url, delete?, name?) | see code                        | Downloads or uses cached asset. Returns: getcustomasset path, success flag, and full path. |
-
----
-
-## 9. Logging (*IvLog*)
+## 7. Logging (*IvLog*)
 
 Controlled live logging with emojis.
 
@@ -231,22 +170,121 @@ IvLog.info('prettyTables disabled:', {a = 1, b = 2, c = 3, d = 4})
 
 ---
 
-## 10. Miscellaneous Utilities
+## 8. SignalRegistry
 
-| Function            | Signature                                 | Description                                                                            |
-| ------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------- |
-| randomString(len) | (number) -> string                      | Generates alphanumeric random string.                                                  |
-| timeFmt(elapse)   | (number) -> string                      | Formats elapsed seconds into µs/ms/s.                                                  |
-| benchmark(fn,...) | (function, ...) -> (...results, number) | Measures execution time of any function call. Returns all results and elapsed seconds. |
-
-**Usage**:
+SignalRegistry manages RBXScriptConnections with IDs, suspension, and automatic cleanup.
 
 ```lua
-local result, time = benchmark(function()
-    return table.flat({1, {2, 3}}, true)
-end)
-print('Took:', timeFmt(time))
+local signals = SignalRegistry()
+local shared = SignalRegistry('shared-token')
 ```
+
+### Methods
+
+| Method                                                       | Description                         |
+| ------------------------------------------------------------ | ----------------------------------- |
+| connect(id, signal, callback, ...extra)                      | Registers a connection              |
+| disconnect(id **or** connection)                                  | Disconnects entry                   |
+| suspend(id **or** connection)                                     | Temporarily disables listener       |
+| resume(id **or** connection)                                      | Re-enables listener                 |
+| count()                                                      | Active connection count             |
+| clear()                                                      | Disconnects all                     |
+| getConnection(id **or** connection)                               | Resolves registry entry             |
+| untilThen(signal, callback, condition, onTimeout?, ...extra) | Auto-disconnects based on condition |
+
+### Examples
+
+```lua
+signals.connect('jump', plr.Character.Humanoid.Jumping, function(active)
+    if active then print('jumping') end
+end)
+
+signals.suspend('jump')
+signals.resume('jump')
+
+signals.untilThen(
+    workspace.ChildAdded,
+    function(child)
+        print('added', child.Name)
+        return child.Name == 'StopHere'
+    end
+)
+```
+
+### untilThen Behavior
+
+* `condition` may be:
+
+  * function → evaluated after each callback
+  * number → timeout in seconds
+  * RBXScriptSignal → kills listener when fired
+* Returning `true` from `callback` **immediately disconnects**
+
+---
+
+## 9. File System (`IvKit.fs`)
+
+Modern replacement for the old `fileSys`.
+
+### Core Functions
+
+| Function               | Description                   |
+| ---------------------- | ----------------------------- |
+| normalizePath(path)    | Cleans and normalizes slashes |
+| joinPath(...)          | Safe path concatenation       |
+| dirName(path)          | Parent directory              |
+| exists(path)           | File or folder existence      |
+| readFile(path)         | Reads file contents           |
+| writeFile(path, data)  | Writes file                   |
+| appendFile(path, data) | Appends to file               |
+| listFiles(path)        | Lists directory               |
+| makeDir(path)          | Recursive mkdir               |
+| deleteFile(path)       | Deletes file                  |
+| deleteFolder(path)     | Deletes folder                |
+| loadFile(path)         | Loads Lua chunk               |
+| doFile(path)           | Executes Lua file             |
+
+### Asset Loader
+
+`fs.loadAsset(folder, url, deleteOld?, key?)`
+
+* Uses SHA256 hashing
+* Caches assets deterministically
+* Supports cleanup via metadata
+
+Old `IvKit.fileSys` is deprecated and removed.
+
+### Asset Loader
+
+```lua
+local assetId, ok = fs.loadAsset('IvKit/assets', 'https://example.com/image.png', true, 'icon')
+```
+
+### Examples
+
+```lua
+local dir = fs.joinPath('IvKit', 'data')
+fs.makeDir(dir)
+
+local file = fs.joinPath(dir, 'test.txt')
+fs.writeFile(file, 'hello')
+
+IvLog.info(fs.readFile(file))
+
+for x, v in fs.listFiles(dir) do
+    IvLog.info(v)
+end
+```
+---
+
+## 10. Timing Utilities
+
+| Function           | Description                        |
+| ------------------ | ---------------------------------- |
+| benchmark(fn, ...) | Returns all results + elapsed time |
+| timeFmt(seconds)   | Formats µs / ms / s                |
+
+---
 <p align='center'>
   <img src='https://i.pinimg.com/736x/1e/23/41/1e2341a9fd387f550118bafcebb34a24.jpg' width=400/>
 </p>
