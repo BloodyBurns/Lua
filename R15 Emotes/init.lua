@@ -36,7 +36,7 @@ local readEmotes = function()
         IvLog.warn('Cache miss → fetching remote file')
         IvLog.info('Initiating remote fetch for emotes.json')
 
-        local ok, body = pcall(HttpGet, 'https://raw.githubusercontent.com/BloodyBurns/Lua/refs/heads/main/emotes.json')
+        local ok, body = pcall(HttpGet, 'https://raw.githubusercontent.com/BloodyBurns/Lua/refs/heads/main/R15%20Emotes/emotes.json')
         if not (ok and type(body, 'string') and body ~= '') then
             return IvLog.error('Fetch failed → invalid response')
         end
@@ -167,4 +167,5 @@ for x, v in readEmotes() do
         settings.track.Priority = Enum.AnimationPriority.Idle
         settings.track:Play()
     end)
+
 end
