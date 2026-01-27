@@ -1,3 +1,7 @@
+if not game:IsLoaded() then
+    game.Loaded:Wait()
+end
+
 if getgenv().IvKit then return IvKit.IvLog.warn('IvKit already loaded') end
 local init = os.clock()
 local _getgenv = getgenv()
@@ -63,7 +67,7 @@ local getKeysSorted = function(tbl)
 end
 
 for x, v in IvKit.plrs:GetPlayers() do players[v.Name] = v end
-IvKit.type, IvKit.typeof, IvKit.isMatch, IvKit._pack, IvKit._unpack = type, typeof, isMatch, _pack, unpack
+IvKit.type, IvKit.typeof, IvKit.isMatch, IvKit._pack, IvKit._unpack = type, typeof, isMatch, _pack, _unpack
 IvKit.plrs.PlayerAdded:Connect(function(player) players[player.Name] = player end)
 IvKit.plrs.PlayerRemoving:Connect(function(player)
     if players[player.Name] then
@@ -164,7 +168,206 @@ IvKit.IvLog.warn = function(...) log('warn', '⚠️', ...) end
 IvKit.IvLog.info = function(...) log('info', 'ℹ️', ...) end
 IvKit.IvLog.unknown = function(...) log('unknown', '❔', ...) end
 
+--> lazy map over an Instance (children/descendants) or a table
+local map = {}
+map.__index = map
+
+local reqInst = function(self, method)
+    if self.mode == 'list' then
+        error(`{method}() not valid for table sources`, 2)
+    end
+end
+
+local push = function(self, fn)
+    self.filters[#self.filters + 1] = fn
+    return self
+end
+
+local getList = function(self)
+    if self.mode == 'list' then return self.root end
+    if self.mode == 'descendants' then return self.root:GetDescendants() end
+    return self.root:GetChildren()
+end
+
+map.new = function(src)
+    return setmetatable({
+        root = src,
+        mode = typeof(src, 'Instance') and 'children' or 'list',
+        filters = {},
+    }, map)
+end
+
+map.Children = function(self)
+    reqInst(self, 'Children')
+    self.mode = 'children'
+    return self
+end
+
+map.Descendants = function(self)
+    reqInst(self, 'Descendants')
+    self.mode = 'descendants'
+    return self
+end
+
+map._iter = function(self)
+    local list = getList(self)
+    local filters = self.filters
+    local i = 0
+
+    if (self.mode == 'list' and not isArray(list)) then
+        local x, v
+        return function()
+            while true do
+                x, v = next(list, x)
+                if x == nil then return nil end
+
+                local ok = true
+                for z = 1, #filters do
+                    if not filters[z](v, x) then
+                        ok = false
+                        break
+                    end
+                end
+
+                if ok then
+                    return v, x
+                end
+            end
+        end
+    end
+
+    local n = #list
+    return function()
+        while true do
+            i += 1
+            if i > n then return nil end
+            local v = list[i]
+
+            for z = 1, #filters do
+                if not filters[z](v) then
+                    v = nil
+                    break
+                end
+            end
+
+            if v ~= nil then
+                return v
+            end
+        end
+    end
+end
+
+map.Where = function(self, fn)
+    return push(self, fn)
+end
+
+map.IsA = function(self, className)
+    reqInst(self, 'IsA')
+    return push(self, function(instance) return instance:IsA(className) end)
+end
+
+map.Name = function(self, name)
+    reqInst(self, 'Name')
+    return push(self, function(instance) return instance.Name == name end)
+end
+
+map.Take = function(self, n)
+    local left = n
+    return push(self, function()
+        if left <= 0 then return false end
+        left -= 1
+        return true
+    end)
+end
+
+map.Skip = function(self, n)
+    local left = n
+    return push(self, function()
+        if left > 0 then left -= 1 return false end
+        return true
+    end)
+end
+
+map.Invoke = function(self, fn)
+    for x, v in self:_iter() do fn(x, v) end
+end
+
+map.ToTable = function(self)
+    local result, n = {}, 0
+    for x in self:_iter() do n += 1; result[n] = x end
+    return result
+end
+
+map.Count = function(self)
+    local n = 0
+    for x in self:_iter() do n += 1 end
+    return n
+end
+
+map.Set = function(self, key, valOrFn)
+    reqInst(self, 'Set')
+    local isFn = type(valOrFn, 'function')
+    for instance in self:_iter() do
+        instance[key] = isFn and valOrFn(instance) or valOrFn
+    end
+end
+
+map.SetAttr = function(self, attr, valOrFn)
+    reqInst(self, 'SetAttr')
+    local isFn = type(valOrFn, 'function')
+    for instance in self:_iter() do
+        instance:SetAttribute(attr, isFn and valOrFn(instance) or valOrFn)
+    end
+end
+
+map.Exclude = function(self, items)
+    reqInst(self, 'Exclude')
+    local set = {}
+
+    if type(items, 'table') then
+        for x, v in ipairs(items) do
+            set[v] = true
+        end
+    else
+        set[items] = true
+    end
+
+    return self:Where(function(x)
+        return not set[x]
+    end)
+end
+
+map.ExcludeBy = function(self, property, value)
+    reqInst(self, 'ExcludeBy')
+    if not type(property, 'string') then error('ExcludeBy(property, value): property must be string', 2) end
+
+    local isList = type(value, 'table')
+    local filter = {}
+
+    if isList then
+        for x, v in ipairs(value) do
+            filter[v] = true
+        end
+    end
+
+    return self:Where(function(instance)
+        local ok, v = pcall(function() return instance[property] end)
+        if not ok then return true end
+        if isList then return not filter[v] end
+        return v ~= value
+    end)
+end
+
+map.Destroy = function(self)
+    reqInst(self, 'Destroy')
+    for instance in self:_iter() do instance:Destroy() end
+end
+
 setreadonly(table, false)
+table.map = function(src)
+    return map.new(src)
+end
+
 table.size = function(t)
     if not type(t, 'table') then return 0 end
     local n = 0
@@ -367,7 +570,7 @@ IvKit.SignalRegistry = function(token)
     end
 
     registry.connect = function(id, signal, callback, ...)
-        if not (id and signal and callback) then return end
+        if not (id and typeof(signal, 'RBXScriptSignal') and type(callback, 'function')) then return end
         local entry = registry.getConnection(id)
         if entry then return entry end
 
@@ -605,7 +808,7 @@ IvKit.benchmark = function(fn, ...)
     local results = _pack(pcall(fn, ...))
     results[results.n+1] = os.clock() - t0
     results.n += 1
-    return _unpack(results, 1, results.n)
+    return _unpack(results)
 end
 
 IvKit.timeFmt = function(elapse)
@@ -621,4 +824,3 @@ setmetatable(getgenv().IvKit, {
 })
 
 IvKit.IvLog.info('IvKit load time:', IvKit.timeFmt(os.clock() - init))
-
