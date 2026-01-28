@@ -21,7 +21,8 @@ getgenv().IvKit = {
     ReplicatedStorage = game:GetService('ReplicatedStorage'),
     MarketplaceService = game:GetService('MarketplaceService'),
     AvatarEditorService = game:GetService('AvatarEditorService'),
-    VirtualInputManager = game:GetService('VirtualInputManager')
+    VirtualInputManager = game:GetService('VirtualInputManager'),
+	ContextActionService = game:GetService('ContextActionService')
 }
 
 IvKit.plr = IvKit.plrs.LocalPlayer
@@ -824,3 +825,4 @@ setmetatable(getgenv().IvKit, {
 })
 
 IvKit.IvLog.info('IvKit load time:', IvKit.timeFmt(os.clock() - init))
+
