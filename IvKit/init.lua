@@ -168,6 +168,16 @@ IvKit.IvLog.error = function(...) log('error', '❌', ...) end
 IvKit.IvLog.warn = function(...) log('warn', '⚠️', ...) end
 IvKit.IvLog.info = function(...) log('info', 'ℹ️', ...) end
 IvKit.IvLog.unknown = function(...) log('unknown', '❔', ...) end
+IvKit.IvLog.throw = function(err, context)
+    local _src, lvl = IvKit._src, 2
+    repeat
+        local src = debug.info(lvl, 's')
+        if not src or (src ~= '[C]' and src ~= _src) then break end
+        lvl += 1
+    until false
+
+    error(context and `{IvKit.IvLog.emojis and ('💀 ') or ''}[IvLog] {context}\n→ {err}` or err, lvl)
+end
 
 --> lazy map over an Instance (children/descendants) or a table
 local map = {}
@@ -825,4 +835,5 @@ setmetatable(getgenv().IvKit, {
 })
 
 IvKit.IvLog.info('IvKit load time:', IvKit.timeFmt(os.clock() - init))
+
 
