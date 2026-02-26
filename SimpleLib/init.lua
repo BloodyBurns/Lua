@@ -62,7 +62,7 @@ library.CreateGroup = function(self, groupName)
 		btnFrame.click.MouseButton1Click:Connect(function()
 			if db then return end
 			db = true
-			callback(_unpack(extra))
+			task.spawn(callback, _unpack(extra))
 			local effect = btnFrame:FindFirstChild('effect')
 			if not effect then db = false return end
 			effect.Visible = true
@@ -96,7 +96,7 @@ library.CreateGroup = function(self, groupName)
 		inputFrame.label.Text = label
 		inputFrame.field.input.FocusLost:Connect(function()
 			local input = inputFrame.field.input
-			callback(input.Text, input)
+			task.spawn(callback, input.Text, input)
 		end)
 	end
 	
@@ -110,7 +110,7 @@ library.CreateGroup = function(self, groupName)
 			if db then return end
 			db = true
 			state = not state
-			callback(state)
+			task.spawn(callback, state)
 
 			local fade = TweenService:Create(toggleFrame.click, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {BackgroundColor3 = state and accent or s2})
 			
@@ -121,7 +121,7 @@ library.CreateGroup = function(self, groupName)
 		toggleFrame.click.MouseEnter:Connect(function() if state then return end toggleFrame.click.BackgroundColor3 = darkenAccent end)
 		toggleFrame.click.MouseLeave:Connect(function() if state then return end toggleFrame.click.BackgroundColor3 = s2 end)
 		toggleFrame.click.BackgroundColor3 = state and accent or s2
-		callback(state)
+		task.spawn(callback, state)
 	end
 	
 	methods.CreateSlider = function(self, label, cfg, callback)
@@ -140,11 +140,12 @@ library.CreateGroup = function(self, groupName)
 			if localPos.X < -10 or localPos.X - 10 > sliderFrame.AbsoluteSize.X then return end
 			local t = math.clamp(localPos.X / sliderFrame.AbsoluteSize.X, 0, 1)
 			local value = cfg.min + (cfg.max - cfg.min) * t
+			local p_value = cfg.p and string.format(`%.{math.clamp(cfg.p, 0, 4)}f`, value) or math.floor(value)
 			
 			cfg.value = value
 			sliderFrame.slide.Size = UDim2.new(t, 0, 1, 0)
-			sliderFrame.frame.value.Text = cfg.p and string.format(`%.{math.clamp(cfg.p, 0, 4)}f`, value) or math.floor(value)
-			callback(value)
+			sliderFrame.frame.value.Text = p_value
+			task.spawn(callback, p_value, value)
 		end
 		
 		sliderFrame.slide.Size = UDim2.new((cfg.value - cfg.min) / (cfg.max - cfg.min), 0, 1, 0)
