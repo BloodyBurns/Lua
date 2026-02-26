@@ -87,6 +87,7 @@ library.CreateGroup = function(self, groupName)
 		local textFrame = cards.label:Clone()
 		textFrame.Parent = group.body
 		textFrame.label.Text = label
+		 return textFrame.label
 	end
 	
 	methods.CreateInput = function(self, label, callback)
@@ -169,5 +170,6 @@ library.CreateGroup = function(self, groupName)
 	
 	return methods
 end
+
 
 return library
