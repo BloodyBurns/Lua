@@ -109,8 +109,8 @@ group:CreateSlider('Speed', {
 	max = 100,
 	value = 50,
 	p = 0
-}, function(value)
-	print(value)
+}, function(value, absoluteValue)
+	print(value, absoluteValue)
 end)
 ```
 
@@ -143,4 +143,5 @@ g:CreateSlider('WalkSpeed', {
 }, function(v)
 	game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = v
 end)
+
 ```
