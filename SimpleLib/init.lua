@@ -21,8 +21,11 @@ signals.connect(randomString(), UserInputService.InputBegan, function(input, f)
 end)
 
 local library = {}
+library.states = {}
+library.tweens = {}
+library.isAlive = true
 library.groupCount = 0
-library.Destroy = function() signals.clear() UI_ROOT:Destroy() end
+library.signals = SignalRegistry()
 library.SetTitle = function(self, title) window.header.title.Text = title end
 library.CreateGroup = function(self, groupName)
 	if library.groupCount > 5 then return error('Max Group Count') end
@@ -36,8 +39,8 @@ library.CreateGroup = function(self, groupName)
 	
 	groupFrame.Parent = window.body
 	groupFrame.open.Text = groupName
-	groupFrame.open.MouseButton1Click:Connect(function() group.Visible = true end)
-	groupFrame.close.MouseButton1Click:Connect(function() group.Visible = false end)
+	signals.connect(randomString(), groupFrame.open.MouseButton1Click, function() /group.Visible = true end)
+	signals.connect(randomString(), groupFrame.close.MouseButton1Click, function() /group.Visible = false end)
 	
 	window.body.Visible = true
 	window.padding.PaddingBottom = UDim.new(0, 10)
@@ -45,7 +48,7 @@ library.CreateGroup = function(self, groupName)
 	group.Parent = UI_ROOT.canvas
 	group.header.title.Text = groupName
 	group.Position = UDim2.new(0.005 + 0.155 * library.groupCount, 0, 0.005, 0)
-	group.header.collapse.d_close.MouseButton1Click:Connect(function()
+	signals.connect(randomString(), group.header.collapse.d_close.MouseButton1Click, function()
 		isOpen = not isOpen
 		group.body.Visible = isOpen
 		group.padding.PaddingBottom = UDim.new(0, isOpen and 10 or 0)
@@ -55,16 +58,16 @@ library.CreateGroup = function(self, groupName)
 	methods.CreateButton = function(self, label, callback, ...)
         local extra = _pack(...)
 		local btnFrame = cards.button:Clone()
+		local effect = btnFrame:FindFirstChild('effect')
 		local db = false
 		
 		btnFrame.Parent = group.body
 		btnFrame.frame.label.Text = label
-		btnFrame.click.MouseButton1Click:Connect(function()
+		signals.connect(randomString(), btnFrame.click.MouseButton1Click, function()
 			if db then return end
 			db = true
 			task.spawn(callback, _unpack(extra))
-			local effect = btnFrame:FindFirstChild('effect')
-			if not effect then db = false return end
+			if not effect.Parent then db = false return end
 			effect.Visible = true
 			effect.BackgroundTransparency = 1
 			effect.Size = UDim2.new(1, 0, 1, 0)
@@ -78,6 +81,7 @@ library.CreateGroup = function(self, groupName)
 			fadeIn.Completed:Once(function() fadeOut:Play() end)
 			fadeOut.Completed:Once(function()
 				if effect.Parent then effect.Visible = false end
+				task.wait(0.25) --> 0.05 + 0.18 + 0.25 s debounce [ 530 ms / 0.53 s ]
 				db = false
 			end)
 		end)
@@ -87,14 +91,14 @@ library.CreateGroup = function(self, groupName)
 		local textFrame = cards.label:Clone()
 		textFrame.Parent = group.body
 		textFrame.label.Text = label
-		 return textFrame.label
+		return textFrame.label
 	end
 	
 	methods.CreateInput = function(self, label, callback)
 		local inputFrame = cards.field:Clone()
 		inputFrame.Parent = group.body
 		inputFrame.label.Text = label
-		inputFrame.field.input.FocusLost:Connect(function()
+		signals.connect(randomString(), inputFrame.field.input.FocusLost, function()
 			local input = inputFrame.field.input
 			task.spawn(callback, input.Text, input)
 		end)
@@ -106,7 +110,7 @@ library.CreateGroup = function(self, groupName)
 		
 		toggleFrame.Parent = group.body
 		toggleFrame.label.Text = label
-		toggleFrame.click.btn.MouseButton1Click:Connect(function()
+		signals.connect(randomString(), toggleFrame.click.btn.MouseButton1Click, function()
 			if db then return end
 			db = true
 			state = not state
@@ -118,8 +122,8 @@ library.CreateGroup = function(self, groupName)
 			fade.Completed:Once(function() db = false end)
 		end)
 		
-		toggleFrame.click.MouseEnter:Connect(function() if state then return end toggleFrame.click.BackgroundColor3 = darkenAccent end)
-		toggleFrame.click.MouseLeave:Connect(function() if state then return end toggleFrame.click.BackgroundColor3 = s2 end)
+		signals.connect(randomString(), toggleFrame.click.MouseEnter, function() if state then return end toggleFrame.click.BackgroundColor3 = darkenAccent end)
+		signals.connect(randomString(), toggleFrame.click.MouseLeave, function() if state then return end toggleFrame.click.BackgroundColor3 = s2 end)
 		toggleFrame.click.BackgroundColor3 = state and accent or s2
 		task.spawn(callback, state)
 	end
@@ -145,7 +149,7 @@ library.CreateGroup = function(self, groupName)
 			cfg.value = value
 			sliderFrame.slide.Size = UDim2.new(t, 0, 1, 0)
 			sliderFrame.frame.value.Text = p_value
-			task.spawn(callback, p_value, value)
+			task.spawn(callback, tonumber(p_value), value)
 		end
 		
 		sliderFrame.slide.Size = UDim2.new((cfg.value - cfg.min) / (cfg.max - cfg.min), 0, 1, 0)
@@ -172,5 +176,44 @@ library.CreateGroup = function(self, groupName)
 	return methods
 end
 
+library.Destroy = function(self)
+    if not self.isAlive then
+        return
+    end
+
+    self.isAlive = false
+    UI_ROOT:Destroy()
+end
+
+library.Tween = function(self, ...)
+    if not self.isAlive then
+        return
+    end
+
+    local tween = TweenService:Create(...)
+    self.tweens[tween] = true
+    tween.Completed:Once(function()
+        self.tweens[tween] = nil
+    end)
+
+    return tween
+end
+
+UI_ROOT.Destroying:Once(function()
+    library.isAlive = false
+	
+    library.signals.clear()
+	signals.clear()
+
+	for tween in library.tweens do
+		tween:Cancel()
+		library.tweens[tween] = nil
+	end
+
+    table.clear(library.signals)
+    table.clear(library.tweens)
+    table.clear(library.states)
+    task.defer(table.clear, library)
+end)
 
 return library
