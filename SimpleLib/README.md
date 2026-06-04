@@ -26,7 +26,7 @@ Updates the window header.
 ### CreateGroup
 
 ```lua
-local group = library:CreateGroup(name: string)
+local group = library:CreateGroup(name: string): Methods
 ```
 
 * Maximum: **6 groups**
@@ -53,7 +53,7 @@ group:CreateButton('hello', print, 'Hello', 123)
 ### Text
 
 ```lua
-group:CreateText(label: string)
+group:CreateText(label: string): Instance
 ```
 
 ---
