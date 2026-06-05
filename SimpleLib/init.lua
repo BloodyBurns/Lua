@@ -39,8 +39,8 @@ library.CreateGroup = function(self, groupName)
 	
 	groupFrame.Parent = window.body
 	groupFrame.open.Text = groupName
-	signals.connect(randomString(), groupFrame.open.MouseButton1Click, function() /group.Visible = true end)
-	signals.connect(randomString(), groupFrame.close.MouseButton1Click, function() /group.Visible = false end)
+	signals.connect(randomString(), groupFrame.open.MouseButton1Click, function() group.Visible = true end)
+	signals.connect(randomString(), groupFrame.close.MouseButton1Click, function() group.Visible = false end)
 	
 	window.body.Visible = true
 	window.padding.PaddingBottom = UDim.new(0, 10)
